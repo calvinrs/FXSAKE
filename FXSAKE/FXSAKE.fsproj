@@ -54,6 +54,7 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="ExcelHelpers.fs" />
     <Compile Include="FXSAKE_CORE.fs" />
     <Compile Include="Ribbon.fs" />
     <None Include="Script.fsx" />
