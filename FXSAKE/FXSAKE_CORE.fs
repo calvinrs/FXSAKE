@@ -5,6 +5,7 @@ module MyFunctions =
     open ExcelDna.Integration    
     open ExcelHelpers    
 
+    // TEST FUNCTIONS
     [<ExcelFunction(Description="My first .NET function")>]
     let helloDna name = 
         "Hello " + name
@@ -12,7 +13,8 @@ module MyFunctions =
     [<ExcelFunction(Description="My second .NET function")>]
     let GoodByeDna name = 
         "Goodbye " + name    
-
+    
+    // YIELD CURVE OPERATIONS
     [<ExcelFunction(Description="Return an index in years for an array of numbers, given the frequency in steps per year")>]
     let nuallZCB stepsPerYear (myZCB: float[]) = 
         let myIndex = [| 1..(Array.length myZCB) |]
@@ -24,8 +26,17 @@ module MyFunctions =
     let zcbToSpot time price (stepsPerYear: obj) = 
         match stepsPerYear with
         | :? ExcelMissing -> -log(price)/time
-        | _ ->  unbox stepsPerYear * ( (1.0 / price) ** (1.0 / time * (1.0 / unbox stepsPerYear)) - 1.0)     
- 
+        | _ ->  unbox stepsPerYear * ( (1.0 / price) ** (1.0 / time * (1.0 / unbox stepsPerYear)) - 1.0)
+             
+    let zcbToSpotRates (time: float[]) (price: float[]) (stepsPerYear: obj) = 
+        let zcbCurve = YieldCurves.createZCBCurve time price        
+        let compoundType =  match stepsPerYear with
+            | :? ExcelMissing -> 0.0 |> YieldCurves.getCompounding   
+            | _ ->  stepsPerYear |> unbox |> YieldCurves.getCompounding 
+        let spotCurve = YieldCurves.getSpotCurveFromZCBCurve compoundType zcbCurve
+        let spotRates = spotCurve |> YieldCurves.unpackSpotCurve |> YieldCurves.extractCurveValue
+        spotRates |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
+
     // MATRIX ALGEBRA
     [<ExcelFunction(Description="Determine if a correlation matrix is PSD - i.e. all eigenvalues are positive.")>]
     let isMatrixPSD (myMatrix: float[,]) = 
