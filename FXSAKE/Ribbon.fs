@@ -6,6 +6,8 @@ open Microsoft.Office.Interop.Excel
 open ExcelDna.Integration
 open ExcelDna.Integration.CustomUI
 
+open ExcelHelpers
+
 // This defines a regular Excel macro (in Excel you can press Alt + F8, type in the name "showMessage", then click the Run button).
 // For the ribbon, it will be run through the ExcelRibbon.RunTagMacro(...) helper, which run whatever macro is specified in the button tag attribute
 // One advantage is that you can 
@@ -31,6 +33,7 @@ type public MyRibbon() =
                   <button id='Button1' label='Run a macro' onAction='RunTagMacro' tag='showMessage' />
                   <button id='Button2' label='Run a class member' onAction='OnButtonPressed'/>
                   <button id='Button3' label='Dump the Excel Version to cell A1' onAction='OnDumpData'/>
+                  <button id='Button4' label='Run a custom F# process' onAction='FActionPress'/>
                 </group >
               </tab>
             </tabs>
@@ -40,6 +43,14 @@ type public MyRibbon() =
     member this.OnButtonPressed (control:IRibbonControl) =
         MessageBox.Show "Hello from F#!" 
         |> ignore
+
+    member this.FActionPress (control:IRibbonControl) = 
+        let app = ExcelDnaUtil.Application :?> Application
+        let testRead = app.Range("TestInput").Value2
+        let outMessage = "Input cell contains " + unbox testRead   
+        let testWrite= app.Range("TestOutput")
+        testWrite.Value2 <- outMessage
+
 
     member this.OnDumpData (control:IRibbonControl) =
         let app = ExcelDnaUtil.Application :?> Application

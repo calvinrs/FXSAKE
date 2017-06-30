@@ -7,6 +7,7 @@
 
 open System
 open Microsoft.Office.Interop.Excel
+open ExcelDna.Integration 
 
 /// Helper function to represent string or floating point cell content as a string.
 let cellContent (range : Range) = 
@@ -20,7 +21,7 @@ let cellDouble (range : Range) =
     match range.Value2 with
     | :? double as _double -> _double
     | _ -> 0.0
-
+     
 /// Returns the specified worksheet range as a sequence of indvidual cell ranges.
 let toSeq (range : Range) =
     seq {
@@ -88,6 +89,13 @@ let filter (f : Range -> bool) (range : Range) =
     range
     |> toSeq
     |> Seq.filter (fun cell -> f cell)
+
+
+
+/// My helper functions here
+let isTallRange (caller: ExcelReference) =         
+        let isTall = (caller.RowLast - caller.RowFirst) >= 0 && (caller.ColumnLast - caller.ColumnFirst = 0)           
+        isTall
 
 ///// Examples /////
 
