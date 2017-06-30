@@ -12,10 +12,15 @@ module FXSEMatrixAlgebra =
     
     let eigenValues (matrix: Matrix<float>) =
         if matrix.RowCount = matrix.ColumnCount then         
-            matrix.Evd().EigenValues.Real()
+            matrix.Evd().EigenValues.Real().ToArray()
         else 
             failwith "Matrix is not square."
     
+    // Wrappers using the array representation of a matrix
+    let xlsEigenValues (myMatrix: float[,]) =
+        let thisMatrix = DenseMatrix.ofArray2 myMatrix
+        eigenValues thisMatrix
+
     let xlsMatrixIsPSD (myMatrix: float[,]) =
         let thisMatrix = DenseMatrix.ofArray2 myMatrix
         isPSD thisMatrix

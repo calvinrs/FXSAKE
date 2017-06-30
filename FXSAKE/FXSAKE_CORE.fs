@@ -6,7 +6,7 @@ module MyFunctions =
     open ExcelHelpers    
 
     [<ExcelFunction(Description="My first .NET function")>]
-    let HelloDna name = 
+    let helloDna name = 
         "Hello " + name
 
     [<ExcelFunction(Description="My second .NET function")>]
@@ -21,12 +21,17 @@ module MyFunctions =
     
      
     [<ExcelFunction(Description="Convert a ZCB price to an n-uall spot rate. If stepsPerYear is not set, the output rate is continuously compounded")>]
-    let ZCBtoSpot time price (stepsPerYear: obj) = 
+    let zcbToSpot time price (stepsPerYear: obj) = 
         match stepsPerYear with
         | :? ExcelMissing -> -log(price)/time
         | _ ->  unbox stepsPerYear * ( (1.0 / price) ** (1.0 / time * (1.0 / unbox stepsPerYear)) - 1.0)     
  
     // MATRIX ALGEBRA
     [<ExcelFunction(Description="Determine if a correlation matrix is PSD - i.e. all eigenvalues are positive.")>]
-    let IsMatrixPSD (myMatrix: float[,]) = 
+    let isMatrixPSD (myMatrix: float[,]) = 
         FXSEMatrixAlgebra.xlsMatrixIsPSD myMatrix
+
+    [<ExcelFunction(Description="Return the eigenvalues of a square matrix.")>]
+    let getEigenValues(myMatrix: float[,]) = 
+        let evArray = FXSEMatrixAlgebra.xlsEigenValues myMatrix
+        evArray |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
