@@ -97,6 +97,12 @@ let isTallRange (caller: ExcelReference) =
         let isTall = (caller.RowLast - caller.RowFirst) >= 0 && (caller.ColumnLast - caller.ColumnFirst = 0)           
         isTall
 
+// When data is a 1D array, this will help to resize it for use in array functions horizonally (which it does natively) or veritally (with some shuffling)
+let arrayDirectionHelper (caller: obj) rawOutput = 
+        let isTall = caller :?> ExcelReference |> isTallRange
+        if isTall then Array2D.init (Array.length rawOutput) 1 (fun i j -> match j with |0 -> rawOutput.[i] |_ -> 0.0)
+        else Array2D.init 1 (Array.length rawOutput) (fun i j -> match i with |0 -> rawOutput.[j] |_ -> 0.0) 
+
 ///// Examples /////
 
 // Start Excel.
