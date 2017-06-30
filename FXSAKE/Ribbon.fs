@@ -16,6 +16,18 @@ let showMessage () =
     XlCall.Excel(XlCall.xlcAlert, "Hello from a macro!") 
     |> ignore
 
+[<ExcelCommand>]
+let FillRange () = 
+    let outRef = XlCall.Excel(XlCall.xlfSelection) :?> ExcelReference              
+    let selectionContent = outRef.GetValue()
+
+    let rows = outRef.RowLast - outRef.RowFirst + 1
+    let columns = outRef.ColumnLast - outRef.ColumnFirst + 1
+
+    let result = Array2D.init rows columns (fun i j -> float (i+j) )                       
+    outRef.SetValue(result)
+    |> ignore
+
 
 // This type defines the ribbon interface. It is a public class that derives from ExcelRibbon
 [<ComVisible(true)>]    // This attribute is only needed if there is an assembly-level [<assembly:ComVisible(false)>] attribute.
@@ -33,7 +45,7 @@ type public MyRibbon() =
                   <button id='Button1' label='Run a macro' onAction='RunTagMacro' tag='showMessage' />
                   <button id='Button2' label='Run a class member' onAction='OnButtonPressed'/>
                   <button id='Button3' label='Dump the Excel Version to cell A1' onAction='OnDumpData'/>
-                  <button id='Button4' label='Run a custom F# process' onAction='FActionPress'/>
+                  <button id='Button4' label='Run a custom F# macro' onAction='RunTagMacro' tag='FillRange'/>
                 </group >
               </tab>
             </tabs>
@@ -49,9 +61,8 @@ type public MyRibbon() =
         let testRead = app.Range("TestInput").Value2
         let outMessage = "Input cell contains " + unbox testRead   
         let testWrite= app.Range("TestOutput")
-        testWrite.Value2 <- outMessage
-
-
+        testWrite.Value2 <- outMessage    
+   
     member this.OnDumpData (control:IRibbonControl) =
         let app = ExcelDnaUtil.Application :?> Application
         let cellA1 = app.Range("A1")
