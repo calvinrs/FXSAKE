@@ -3,7 +3,8 @@
 module MyFunctions = 
 
     open ExcelDna.Integration    
-    open ExcelHelpers    
+    open ExcelHelpers
+    open YieldCurves  
 
     // TEST FUNCTIONS
     [<ExcelFunction(Description="My first .NET function")>]
@@ -27,14 +28,15 @@ module MyFunctions =
         match stepsPerYear with
         | :? ExcelMissing -> -log(price)/time
         | _ ->  unbox stepsPerYear * ( (1.0 / price) ** (1.0 / time * (1.0 / unbox stepsPerYear)) - 1.0)
-             
+    
+    [<ExcelFunction(Description="Convert a ZCB curve to an n-uall spot rate. If stepsPerYear is not set, the output rate is continuously compounded")>]         
     let zcbToSpotRates (time: float[]) (price: float[]) (stepsPerYear: obj) = 
-        let zcbCurve = YieldCurves.createZCBCurve time price        
+        let zcbCurve = createZCBCurve time price        
         let compoundType =  match stepsPerYear with
-            | :? ExcelMissing -> 0.0 |> YieldCurves.getCompounding   
-            | _ ->  stepsPerYear |> unbox |> YieldCurves.getCompounding 
-        let spotCurve = YieldCurves.getSpotCurveFromZCBCurve compoundType zcbCurve
-        let spotRates = spotCurve |> YieldCurves.unpackSpotCurve |> YieldCurves.extractCurveValue
+                            | :? ExcelMissing | :? ExcelEmpty  -> 0.0 |> getCompounding                              
+                            | _ ->  stepsPerYear |> unbox |> getCompounding 
+        let spotCurve = getSpotCurveFromZCBCurve compoundType zcbCurve
+        let spotRates = spotCurve |> unpackSpotCurve |> extractCurveValue
         spotRates |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
 
     // MATRIX ALGEBRA
