@@ -39,6 +39,13 @@ module MyFunctions =
         let spotRates = spotCurve |> unpackSpotCurve |> extractCurveValue
         spotRates |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
 
+    [<ExcelFunction(Description="Convert a ZCB curve to simply compounded forward rate. The forward curve will start at t=0, so if the t=0 ZCB price is excluded from the input, this will be offset by one place.")>]         
+    let zcbToForwardRates (time: float[]) (price: float[]) (stepsPerYear: obj) = 
+        let zcbCurve = createZCBCurve time price    
+        let fwdCurve = zcbCurve |> simplyCompoundedForwardCurve
+        let fwdRates = fwdCurve |> unpackForwardCurve |> extractCurveValue
+        fwdRates |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
+
     // MATRIX ALGEBRA
     [<ExcelFunction(Description="Determine if a correlation matrix is PSD - i.e. all eigenvalues are positive.")>]
     let isMatrixPSD (myMatrix: float[,]) = 

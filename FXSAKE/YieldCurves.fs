@@ -11,12 +11,15 @@ module YieldCurves =
     type SpotRates = SpotRates of float array
     type SpotCurve = SpotCurve of (float * float) array
 
+    type ForwardCurve = ForwardCurve of (float * float) array
+
     let createZCBCurve (time: float[]) (price: float[]) = 
         let myZCBCurve =  Array.zip time price
         ZCBCurve myZCBCurve
 
     let unpackSpotCurve (SpotCurve mySpot) = mySpot
     let unpackZCBCurve (ZCBCurve myZCB) = myZCB
+    let unpackForwardCurve (ForwardCurve myFwd) = myFwd
 
     let extractCurveValue (curve: (float * float) array) =        
         curve |> Array.map (snd)
@@ -37,7 +40,22 @@ module YieldCurves =
         | 2.0 -> SemiAnnual
         | 1.0 -> Annual
         | _ -> Continuous
+    
+    let withZeroZCB (ZCBCurve aZCBCurve) = 
+        let outCurve = match fst aZCBCurve.[0] with
+                        | 0.0 -> aZCBCurve
+                        | _ -> Array.append [|(0.0, 1.0)|] aZCBCurve
+        ZCBCurve outCurve
 
+    let implyScaleFactor (ZCBCurve aZCBCurve) =     
+        (fst aZCBCurve.[1]) -  (fst aZCBCurve.[0])
+    
+    let simplyCompoundedForwardCurve (aZCBCurve) = 
+        let (ZCBCurve fullZCBCurve) = withZeroZCB aZCBCurve
+        let pairZCBs = fullZCBCurve |> Array.toSeq |> Seq.pairwise //Array.pairwise avaliable from F# 4.0 - convert this to a Seq and back to get this effect
+        let scaleFactor = (ZCBCurve fullZCBCurve) |> implyScaleFactor    
+        let forwardRates = pairZCBs |> Seq.map (fun ((t1,z1),(t2,z2)) -> (t1, ((1.0 / scaleFactor) * (z1 / z2) - 1.0)) ) |> Seq.toArray
+        ForwardCurve forwardRates
 
     /// TESTS
     let testZCBArray = [|   0.9946570790646718;
@@ -56,8 +74,15 @@ module YieldCurves =
 
     let testAnnZCBCurve = createZCBCurve testAnnualTimes testZCBArray
 
+    let withZeroTestZCB = testAnnZCBCurve |> withZeroZCB
+    let stillWithZeroTestZCB = withZeroTestZCB |> withZeroZCB
+
+    let guessTheScaleFactor = testAnnZCBCurve |> implyScaleFactor
+
     let testAnnSpotFromAnnCurve = getSpotCurveFromZCBCurve Annual testAnnZCBCurve
 
     let testContSpotFromAnnCurve = getSpotCurveFromZCBCurve (getCompounding 0.0) testAnnZCBCurve
 
     let extractContSpotRates = testContSpotFromAnnCurve |> unpackSpotCurve |> extractCurveValue
+
+    let testSimpleFwdCurve = testAnnZCBCurve |> simplyCompoundedForwardCurve
