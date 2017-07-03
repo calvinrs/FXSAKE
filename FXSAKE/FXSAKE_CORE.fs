@@ -39,12 +39,28 @@ module MyFunctions =
         let spotRates = spotCurve |> unpackSpotCurve |> extractCurveValue
         spotRates |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
 
+    [<ExcelFunction(Description="Convert a spot rate to a ZCB curve, given a compounding frequency for the spot rates. If stepsPerYear is not set, the output rate is continuously compounded")>] 
+    let spotCurveToZCBPrices (time: float[]) (spot: float[]) (stepsPerYear: obj) = 
+        let spotCurve = createSpotCurve time spot 
+        let compoundType =  match stepsPerYear with
+                            | :? ExcelMissing | :? ExcelEmpty  -> 0.0 |> getCompounding                              
+                            | _ ->  stepsPerYear |> unbox |> getCompounding 
+        let zcbCurve = getZCBCurveFromSpotCurve compoundType spotCurve
+        let zcbPrices = zcbCurve |> unpackZCBCurve |> extractCurveValue
+        zcbPrices |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
+
     [<ExcelFunction(Description="Convert a ZCB curve to simply compounded forward rate. The forward curve will start at t=0, so if the t=0 ZCB price is excluded from the input, this will be offset by one place.")>]         
     let zcbToForwardRates (time: float[]) (price: float[]) (stepsPerYear: obj) = 
         let zcbCurve = createZCBCurve time price    
         let fwdCurve = zcbCurve |> simplyCompoundedForwardCurve
         let fwdRates = fwdCurve |> unpackForwardCurve |> extractCurveValue
         fwdRates |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
+
+    [<ExcelFunction(Description="Interpolate over an annual ZCB curve and return a monthly ZCB curve - this includes the terms, so return this over 2 columns.")>]         
+    let zcbAnnCurveMonthlyInterpolation (time: float[]) (price: float[]) =
+        let annZcbCurve = createZCBCurve time price  
+        let monZcbCurveArray = annZcbCurve |> interpolateAnnZCBCurveAsMonthly |> curveTo2DArray        
+        monZcbCurveArray
 
     // MATRIX ALGEBRA
     [<ExcelFunction(Description="Determine if a correlation matrix is PSD - i.e. all eigenvalues are positive.")>]
