@@ -67,13 +67,13 @@ module YieldCurves =
     // FORWARD RATES
 
     let implyScaleFactor (ZCBCurve aZCBCurve) =     
-        (fst aZCBCurve.[1]) -  (fst aZCBCurve.[0])
+        System.Math.Round(1.0 / (fst aZCBCurve.[1]) -  (fst aZCBCurve.[0]),0)
     
     let simplyCompoundedForwardCurve (aZCBCurve) = 
         let (ZCBCurve fullZCBCurve) = withZeroZCB aZCBCurve
         let pairZCBs = fullZCBCurve |> Array.toSeq |> Seq.pairwise //Array.pairwise avaliable from F# 4.0 - convert this to a Seq and back to get this effect
         let scaleFactor = (ZCBCurve fullZCBCurve) |> implyScaleFactor    
-        let forwardRates = pairZCBs |> Seq.map (fun ((t1,z1),(t2,z2)) -> (t1, ((1.0 / scaleFactor) * (z1 / z2) - 1.0)) ) |> Seq.toArray
+        let forwardRates = pairZCBs |> Seq.map (fun ((t1,z1),(t2,z2)) -> (t1, scaleFactor * ((z1 / z2) - 1.0)) ) |> Seq.toArray
         ForwardCurve forwardRates
 
     // INTERPOLATION - using MathNet.numerics
@@ -135,4 +135,6 @@ module YieldCurves =
 
     let testRawInterp = testInterpMonCurve |> curveTo2DArray
 
+    let testMonZCB = ZCBCurve [|(0.0, 1.0);(1.0/12.0, 0.999727427959442);(2.0/12.0, 0.999453663825988)|]
     
+    let testMonFwd = testMonZCB |> simplyCompoundedForwardCurve 
