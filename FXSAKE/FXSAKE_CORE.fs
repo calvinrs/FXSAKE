@@ -71,3 +71,10 @@ module MyFunctions =
     let getEigenValues(myMatrix: float[,]) = 
         let evArray = FXSEMatrixAlgebra.xlsEigenValues myMatrix
         evArray |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))
+
+    // String Manipulation
+
+    [<ExcelFunction(Description="Wrap an array of values as as single string for entry into a SQL INSERT VALUES statement.")>]
+    let sqlValuesList (things: obj[]) = 
+        things |> Array.map StringManipulation.singleQuotes |> Array.reduce (StringManipulation.commaDelimeter) |> sprintf ",(%s)"
+         
