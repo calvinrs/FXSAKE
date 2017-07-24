@@ -1,7 +1,8 @@
 ﻿namespace FxSake
 
 module MyFunctions = 
-
+    
+    open System
     open ExcelDna.Integration    
     open ExcelHelpers
     open YieldCurves  
@@ -77,4 +78,7 @@ module MyFunctions =
     [<ExcelFunction(Description="Wrap an array of values as as single string for entry into a SQL INSERT VALUES statement.")>]
     let sqlValuesList (things: obj[]) = 
         things |> Array.map StringManipulation.singleQuotes |> Array.reduce (StringManipulation.commaDelimeter) |> sprintf ",(%s)"
-         
+    
+    [<ExcelFunction(Description="Convert a date to a SQL-compatable YYYYMMDD format.")>]
+    let sqlDateFormat (date:DateTime) = 
+        StringManipulation.sqlDate () date
