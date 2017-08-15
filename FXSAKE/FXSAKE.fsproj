@@ -58,6 +58,8 @@
     <Compile Include="YieldCurves.fs" />
     <Compile Include="ExcelHelpers.fs" />
     <Compile Include="StringManipulation.fs" />
+    <Compile Include="RWTS.fs" />
+    <None Include="RWTS_Tests.fsx" />
     <Compile Include="FXSAKE_CORE.fs" />
     <Compile Include="Ribbon.fs" />
     <None Include="Script.fsx" />
@@ -66,6 +68,10 @@
     <None Include="FXSAKE-AddIn.dna" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Deedle">
+      <HintPath>..\packages\Deedle.1.2.5\lib\net40\Deedle.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="ExcelDna.Integration">
       <HintPath>..\..\..\..\..\..\..\Users\stewarca\documents\visual studio 2015\Projects\FXSAKE\packages\ExcelDna.Integration.0.34.6\lib\ExcelDna.Integration.dll</HintPath>
       <Private>False</Private>
@@ -90,6 +96,7 @@
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />

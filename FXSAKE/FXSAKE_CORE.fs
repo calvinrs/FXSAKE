@@ -82,3 +82,31 @@ module MyFunctions =
     [<ExcelFunction(Description="Convert a date to a SQL-compatable YYYYMMDD format.")>]
     let sqlDateFormat (date:DateTime) = 
         StringManipulation.sqlDate () date
+
+    // RWTS Functions
+
+    open RWTS
+
+    [<ExcelFunction(Description="Take a series of returns, and calculate the log change of the entire series.")>]
+    let logReturnsQuarterly (dateasFloatArray: float[]) (valueArray: float[]) =
+        let dateArray = dateasFloatArray |> Array.map (fun d -> DateTime.FromOADate(d))
+        let returns = timeSeriesFromArrays dateArray valueArray |> logReturnQuarterly
+        let resultArray = evaluateTimeSeriesOverDates returns dateArray
+        resultArray |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))    
+
+    [<ExcelFunction(Description="Take a time series, and calculate the EWMA weighted average of the at each date.")>]
+    let ewmaSeriesAverage (dateasFloatArray: float[]) (valueArray: float[]) (lambda: float) (initValue: float) =
+        let settings = {lambda = lambda; initValue = initValue}
+        let dateArray = dateasFloatArray |> Array.map (fun d -> DateTime.FromOADate(d))
+        let averages = timeSeriesFromArrays dateArray valueArray |> ewmaAverage settings
+        let resultArray = evaluateTimeSeriesOverDates averages dateArray
+        resultArray |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller)) 
+
+    [<ExcelFunction(Description="Take a series of (excess) returns, and calculate the EWMA Volatility of the series at the final date.")>]
+    let ewmaReturnVolatility (dateasFloatArray: float[]) (returnsArray: float[]) (lambda: float) (initValue: float) (seriesPeriodInMonths: float) =
+        let settings = {lambda = lambda; initValue = initValue}
+        let dateArray = dateasFloatArray |> Array.map (fun d -> DateTime.FromOADate(d))
+        let returns = timeSeriesFromArrays dateArray returnsArray |> resampleSeries (int seriesPeriodInMonths) // note we are assuming a monthly series, and resampling
+        let volatilitySeries = ewmaVolatility settings (int seriesPeriodInMonths) returns
+        let lastDate = volatilitySeries.Keys |> Seq.toList |> List.rev |> List.head
+        dateLookupInTimeSeries volatilitySeries lastDate

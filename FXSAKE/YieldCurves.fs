@@ -43,7 +43,8 @@ module YieldCurves =
         | SemiAnnual  -> timedZCB |> spotRates 2.0
         | Annual -> timedZCB |> spotRates 1.0
 
-    let getCompounding stepsPerYear = match stepsPerYear with
+    let getCompounding stepsPerYear =
+      match stepsPerYear with
         | 12.0 -> Monthly
         | 2.0 -> SemiAnnual
         | 1.0 -> Annual
