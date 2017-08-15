@@ -78,9 +78,9 @@ module RWTS =
         let {lambda = lambda; initValue = initialVal} = settings
         let initDate = series.GetKeyAt(0)
         let initPoint = Series([initDate], [initialVal])
-        let average = 
+        let ave = 
             series   
             |> Series.filter (fun k v -> k.Equals(initDate) = false)  // TODO: is this step required - the average example does not start at init, but at the first calculation
             |> Series.scanValues (fun prevValue curValue -> lambda * prevValue + (1.0 - lambda) * curValue ) initialVal
             |> Series.merge initPoint        
-        average
+        ave
