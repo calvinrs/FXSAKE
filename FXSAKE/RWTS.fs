@@ -49,26 +49,26 @@ module RWTS =
         let fullXSReturns = joinTRIToRates?Returns - joinTRIToRates?Rates |> Series.fillMissingUsing (fun k -> joinTRIToRates?Returns.Get(k)) // TODO: This fills dates without rates with the TRI only - is this the right thing to do?
         fullXSReturns
 
-    let resampleSeries seriesPeriodPerAnnum (series: TimeSeries) =
+    let resampleMonthlySeries seriesPeriodPerAnnum (series: TimeSeries) =
         let seriesPeriodInMonths = (12  / seriesPeriodPerAnnum)
         series |> Series.filter (fun k v -> k.Month % seriesPeriodInMonths = 0)
 
     // UNIVARIATE  
     // EWMA Calculations
 
-    let ewmaVariance (settings: EWMASettings) (xsReturns: TimeSeries) =
+    let ewmaVariance (settings: EWMASettings) (series: TimeSeries) =
         let {lambda = lambda; initValue = initialVal} = settings
-        let initDate = xsReturns.GetKeyAt(0)
+        let initDate = series.GetKeyAt(0)
         let initPoint = Series([initDate], [initialVal])
         let variance = 
-            xsReturns   
+            series   
             |> Series.filter (fun k v -> k.Equals(initDate) = false)  
             |> Series.scanValues (fun prevVariance currentReturn -> lambda * prevVariance + (1.0 - lambda) * currentReturn ** 2.0 ) initialVal
             |> Series.merge initPoint        
         variance
 
-    let ewmaVolatility (settings: EWMASettings) seriesPeriodPerAnnum (xsReturns: TimeSeries) =       
-        let variance = ewmaVariance settings xsReturns            
+    let ewmaVolatility (settings: EWMASettings) seriesPeriodPerAnnum (series: TimeSeries) =       
+        let variance = ewmaVariance settings series            
         //Finally, we convert the variance to an annualised volatility. 
         let seriesPeriodInMonths = float (12  / seriesPeriodPerAnnum)
         let volatility = (12.0 / seriesPeriodInMonths) ** 0.5 * variance ** 0.5

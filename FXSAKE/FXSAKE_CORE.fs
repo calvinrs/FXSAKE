@@ -106,7 +106,7 @@ module MyFunctions =
     let ewmaReturnVolatility (dateasFloatArray: float[]) (returnsArray: float[]) (lambda: float) (initValue: float) (seriesPeriodInMonths: float) =
         let settings = {lambda = lambda; initValue = initValue}
         let dateArray = dateasFloatArray |> Array.map (fun d -> DateTime.FromOADate(d))
-        let returns = timeSeriesFromArrays dateArray returnsArray |> resampleSeries (int seriesPeriodInMonths) // note we are assuming a monthly series, and resampling
+        let returns = timeSeriesFromArrays dateArray returnsArray |> resampleMonthlySeries (int seriesPeriodInMonths) // note we are assuming a monthly series, and resampling
         let volatilitySeries = ewmaVolatility settings (int seriesPeriodInMonths) returns
         let lastDate = volatilitySeries.Keys |> Seq.toList |> List.rev |> List.head
         dateLookupInTimeSeries volatilitySeries lastDate
