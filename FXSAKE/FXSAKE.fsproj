@@ -58,6 +58,8 @@
     <Compile Include="YieldCurves.fs" />
     <Compile Include="ExcelHelpers.fs" />
     <Compile Include="StringManipulation.fs" />
+    <Compile Include="SVJD_TermStructure.fs" />
+    <None Include="SVJD_TermStructure_Test.fsx" />
     <Compile Include="RWTS.fs" />
     <None Include="RWTS_Tests.fsx" />
     <Compile Include="FXSAKE_CORE.fs" />
@@ -77,7 +79,7 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="FSharp.Core">
-      <HintPath>..\..\..\..\..\..\..\Users\stewarca\documents\visual studio 2015\Projects\FXSAKE\packages\FSharp.Core.3.1.2.5\lib\net40\FSharp.Core.dll</HintPath>
+      <HintPath>..\packages\FSharp.Core.4.2.2\lib\net45\FSharp.Core.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="FSharp.Data">
@@ -85,11 +87,11 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="MathNet.Numerics">
-      <HintPath>..\..\..\..\..\..\..\Users\stewarca\documents\visual studio 2015\Projects\FXSAKE\packages\MathNet.Numerics.3.19.0\lib\net40\MathNet.Numerics.dll</HintPath>
+      <HintPath>..\packages\MathNet.Numerics.3.20.0\lib\net40\MathNet.Numerics.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="MathNet.Numerics.FSharp">
-      <HintPath>..\..\..\..\..\..\..\Users\stewarca\documents\visual studio 2015\Projects\FXSAKE\packages\MathNet.Numerics.FSharp.3.19.0\lib\net40\MathNet.Numerics.FSharp.dll</HintPath>
+      <HintPath>..\packages\MathNet.Numerics.FSharp.3.20.0\lib\net40\MathNet.Numerics.FSharp.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.Office.Interop.Excel, Version=14.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c" />

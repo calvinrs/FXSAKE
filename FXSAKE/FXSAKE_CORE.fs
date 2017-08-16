@@ -83,6 +83,25 @@ module MyFunctions =
     let sqlDateFormat (date:DateTime) = 
         StringManipulation.sqlDate () date
 
+    // SVJD Term Structure
+
+    open SVJD_TermStructure
+
+    [<ExcelFunction(Description="Return a SVJD term structure, given the SVJD Model and its end-points.")>]
+    let svjdTermStructure (startVol: float) (uncVol: float) (reversionSpeed: float) (volOfVariance: float) (correlation: float) (jumpIntensity: float) (jumpMean: float) (jumpVol: float) (monthlyTerms: float[]) =        
+        let roundedMonthlyTerms = monthlyTerms |> Array.map int
+        let svjdParameters =   {reversionLevel = uncVol * uncVol; 
+                                reversionSpeed = reversionSpeed;
+                                startVal = startVol * startVol; 
+                                volOfVariance = volOfVariance; 
+                                Correlation = correlation; 
+                                jumpIntensity = jumpIntensity; 
+                                jumpMean = jumpMean;
+                                jumpVol = jumpVol }  
+        let timescaleSVJD = 1.0 / 12.0
+        let extrapolatedSVJDTermStructure = getSVJDInterpolatedVols svjdParameters timescaleSVJD roundedMonthlyTerms
+        extrapolatedSVJDTermStructure |> Array.map snd |> arrayDirectionHelper (XlCall.Excel(XlCall.xlfCaller))    
+
     // RWTS Functions
 
     open RWTS

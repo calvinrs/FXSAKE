@@ -44,7 +44,7 @@ dateLookupInTimeSeries quarterlyTRI (DateTime(2015,12,31))
 
 let xsReturns = excessReturn quarterlyTRI comp3MRates
 
-let quarterlyXSReturns = resampleSeries 4 xsReturns
+let quarterlyXSReturns = resampleMonthlySeries 4 xsReturns
 
 let settingLambda = 0.98
 let settingInitialVal = 0.031102706532478
