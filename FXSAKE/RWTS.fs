@@ -4,13 +4,15 @@ module RWTS =
     
     open System
     open Deedle
+    open MathNet.Numerics.Statistics
+    open MathNet.Numerics.LinearAlgebra
 
     // TYPES
 
     type TimeSeries = Series<DateTime,float>
 
     type EWMASettings = { lambda: float ; initValue: float }
-
+   
     // Helpers
 
     let timeSeriesFromArrays dateArray valueArray =   
@@ -25,7 +27,8 @@ module RWTS =
         let keys = dateArray |> Array.toSeq
         timeSeries |> Series.lookupAll keys Lookup.Exact |> Series.values |> Seq.toArray
        
-
+    let cartesianProduct xs ys = 
+        xs |> List.collect (fun x -> ys |> List.map (fun y -> x, y))    
 
     // Excess Returns
 
@@ -84,3 +87,58 @@ module RWTS =
             |> Series.scanValues (fun prevValue curValue -> lambda * prevValue + (1.0 - lambda) * curValue ) initialVal
             |> Series.merge initPoint        
         ave
+
+    // MULTIVARIATE
+
+    let tenYearCorrelation (calibrationDate: DateTime) (assetLHSeries: TimeSeries) (assetRHSeries: TimeSeries) = 
+        
+        let combinedStartDate = if assetLHSeries.FirstKey() > assetRHSeries.FirstKey() then assetLHSeries.FirstKey() else assetRHSeries.FirstKey()
+        let tenYearsAgo = calibrationDate.AddYears(-10)  
+        let exampleReturnDataFrame = Frame.ofColumns [ assetLHSeries => assetLHSeries; assetRHSeries => assetRHSeries ]  
+        let exampleHist10YReturns = exampleReturnDataFrame |> Frame.filterRows (fun k v -> k >= combinedStartDate && k > tenYearsAgo && k <= calibrationDate)
+
+        let myX = exampleHist10YReturns.GetColumn<float>(assetLHSeries).ValuesAll
+        let myY = exampleHist10YReturns.GetColumn<float>(assetRHSeries).ValuesAll
+
+        let myCorrelXY = Correlation.Pearson(myX, myY)
+        myCorrelXY
+
+    let getUncCorrelFromPair lambda uncVarInit covarScale (calibrationDate: DateTime) (assetLHSeries: TimeSeries) (assetRHSeries: TimeSeries)  =      
+   
+        let seriesLH = assetLHSeries.EndAt(calibrationDate)
+        let seriesRH = assetRHSeries.EndAt(calibrationDate)
+
+        // we will need to take the mean value for each series. This is over the entire lifespan of each series.   
+        let seriesMeanLHS = seriesLH.Mean()
+        let seriesMeanRHS = seriesRH.Mean()
+
+        // For the EWMA part of this calculation, we need to start at the first point in time where both series are avaliable
+        let combinedStartDate = if seriesLH.FirstKey() > seriesRH.FirstKey() then seriesLH.FirstKey() else seriesRH.FirstKey()
+
+        // we can now truncate the data series, and from now on will be working with series of equal length
+        let ewmaReturnsLH = seriesLH.StartAt(combinedStartDate)
+        let ewmaReturnsRH = seriesRH.StartAt(combinedStartDate)
+
+        // Use the Series mu (over all points) rather than the mean of the ewma period, to calculate the covariance
+        let seriesLHMinusMu = ewmaReturnsLH - seriesMeanLHS
+        let seriesRHMinusMu = ewmaReturnsRH - seriesMeanRHS
+        let ewmaCovar = seriesLHMinusMu * seriesRHMinusMu
+
+        let uncCovarInit = uncVarInit * covarScale
+
+        // EWMA of series
+        let ewmaWeightedCovar = 
+            ewmaCovar      
+            |> Series.scanValues (fun lastweightedCovar thisCovar -> lambda * lastweightedCovar + (1.0 - lambda) * thisCovar ) uncCovarInit
+    
+        let ewmaVarLH = 
+            seriesLHMinusMu      
+            |> Series.scanValues (fun lastweightedVar thisVar -> lambda * lastweightedVar + (1.0 - lambda) * thisVar ** 2.0 ) uncVarInit
+
+        let ewmaVarRH = 
+            seriesRHMinusMu      
+            |> Series.scanValues (fun lastweightedVar thisVar -> lambda * lastweightedVar + (1.0 - lambda) * thisVar ** 2.0 ) uncVarInit
+
+        let ewmaCorrel = ewmaWeightedCovar / (ewmaVarLH * ewmaVarRH) ** 0.5
+        // finally, the contribution to the current unconditional correlation matrix for this pair is the ewmaCorrel value at the calibration date
+        ewmaCorrel.Get(calibrationDate)
