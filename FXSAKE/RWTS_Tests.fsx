@@ -2,6 +2,7 @@
 //#r "packages/Deedle.1.2.5/lib/net40/Deedle.dll"
 #r @"..\packages\MathNet.Numerics.3.20.0\lib\net40\MathNet.Numerics.dll"
 #r @"..\packages\MathNet.Numerics.FSharp.3.20.0\lib\net40\MathNet.Numerics.FSharp.dll"
+#r @"..\packages\FSharp.Data.2.3.3\lib\net40\FSharp.Data.dll"
 #load "RWTS.fs"
 
 open System
@@ -83,3 +84,66 @@ tenYearCorrelation calibrationDate (returnXSReturnSeries "EURSTOXX50") (returnXS
 getUncCorrelFromPair 0.99 0.005625 0.5 (DateTime(2009, 12, 31)) (returnXSReturnSeries "E_AUD") (returnXSReturnSeries "E_HKD") //  = 0.53407839
 
 getUncCorrelFromPair 0.99 0.005625 0.5 (DateTime(2009, 12, 31)) (returnXSReturnSeries "E_HKD") (returnXSReturnSeries "E_AUD") //  = 0.53407839, still
+
+
+/// Unrelated to RWTS - try to get data from our model API
+
+//open FxSake.RWTS
+//open FSharp.Data
+//open System
+
+let fullDateRangeQuery  = urlQueryDateRange (DateTime(1850,1,1)) DateTime.Now
+
+let testRWTSSeries = tsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/RWTS/RW/NONE/NONE/EURSTOXX50/NONE""" fullDateRangeQuery
+
+let testFullRWTSSeries = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/RWTS/RW/NONE/NONE/E_NTH_M/NONE"""
+let testFullDDLSeries = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/DDL/NONE/NONE/NONE/AMSTERDAM_MIDKAP/NONE"""
+
+// Is this the place to set dates to EOMonth?
+
+// Start Date is the first key in the historic series
+// End date will be set manually - this is where we decide we want to switch over (take at EOmonth to ensure it includes the last value)
+let endDate = System.DateTime.Parse("2017-06-30") |> eoMonth
+
+let cleanedSeries = combineMonthlySeries testFullDDLSeries?Value testFullRWTSSeries?Value endDate
+
+// Can we now do Timeseries functions on that data?
+let cleanLogAnnReturns = logReturnMonthly cleanedSeries
+
+// let's keep going - take in the 3M series too
+let testFullRWTS3MRates = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.SpotRate.3m/RWTS/RW/NONE/NTH/NONE/NONE"""
+let testFullDDL3MRatess = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.SpotRate.3m/DDL/NONE/NONE/EUR/NONE/NONE"""
+
+let cleaned3M = combineMonthlySeries testFullDDL3MRatess?Value testFullRWTS3MRates?Value endDate
+
+
+let threeMToOneMReturns = log(1.0 + cleaned3M.Shift(1) / 1200.0)
+
+let excessReturns = excessReturn cleanLogAnnReturns threeMToOneMReturns
+
+let test3MSettings = {lambda = 0.75; initValue = 0.003}
+
+ewmaVolatility test3MSettings 12 excessReturns
+
+// Should we test that this data is valid monthly data?
+
+let gaps = cleanedSeries |> Series.keys |> Seq.pairwise |> Seq.map (fun dates -> snd dates - fst dates )
+let min = Seq.min gaps
+let max = Seq.max gaps
+let withinRange = min >= (TimeSpan(28,0,0,0)) && max <= (TimeSpan(31,0,0,0))
+
+let testTSGaps timeSeries (maxDays:TimeSpan) (minDays:TimeSpan) = 
+    let gaps = timeSeries |> Series.keys |> Seq.pairwise |> Seq.map (fun dates -> snd dates - fst dates )
+    let min = Seq.min gaps
+    let max = Seq.max gaps
+    let withinRange = min >= minDays && max <= maxDays
+    withinRange
+
+let seriesIsValidMonthly (timeSeries: TimeSeries) = 
+    testTSGaps timeSeries (TimeSpan(31,0,0,0)) (TimeSpan(28,0,0,0))
+
+seriesIsValidMonthly cleanedSeries
+
+let returnsWithMissing = cleanedSeries |> Series.filter (fun k v -> k.Equals(eoMonth(endDate)) = false)
+
+seriesIsValidMonthly returnsWithMissing

@@ -3,9 +3,11 @@
 module RWTS = 
     
     open System
+    open System.Net
     open Deedle
     open MathNet.Numerics.Statistics
     open MathNet.Numerics.LinearAlgebra
+    open FSharp.Data
 
     // TYPES
 
@@ -29,6 +31,76 @@ module RWTS =
        
     let cartesianProduct xs ys = 
         xs |> List.collect (fun x -> ys |> List.map (fun y -> x, y))    
+    
+    // End-of-month date calculations
+    let eoMonth (date: System.DateTime) = 
+        let year = date.Year
+        let month = date.Month
+        let day = System.DateTime.DaysInMonth(year, month)
+        let eoMonth = System.DateTime(year, month, day, 23, 59, 59, 999)
+        eoMonth
+
+    let eoMonthString date = 
+        let parsedDate = System.DateTime.Parse(date)
+        eoMonth parsedDate
+
+    let monthEndsBetween (firstDate: System.DateTime) (lastDate: System.DateTime) = 
+        let firstEoMonth = eoMonth firstDate
+        Seq.unfold (fun d -> if d <= lastDate then Some(d, eoMonth(d.AddMonths(1))) else None) firstEoMonth
+        |> Seq.toList
+
+    // TimeSeries API calls
+
+    type TimeSeriesPoint = { Date: DateTime; Value: float }
+
+    let dateToUniversalString (date: DateTime) = 
+        date.ToString("u") |> String.map (fun c -> if c = ' ' then 'T' else c)
+
+    let urlQueryDateRange  (startDate: DateTime)  (endDate: DateTime) = 
+        [("minValueDateUtc",dateToUniversalString startDate);("maxValueDateUtc",dateToUniversalString endDate)]
+
+    let tsFrameFromAPI url query = 
+        // Helper function to extract the response body
+        let httpText responseBody = 
+            match responseBody with
+            | Text text -> text
+            | Binary bytes -> sprintf "Got %d bytes of binary content" bytes.Length  
+        let response = 
+          Http.Request(url, 
+              query, 
+              customizeHttpRequest = fun r ->
+              r.Credentials <- CredentialCache.DefaultNetworkCredentials
+              r) 
+        let timeSeriesData = JsonValue.Parse(httpText response.Body)
+        let jsonArray = timeSeriesData.Properties() |> Array.map (fun (k, v) ->  { Date =  System.DateTime.Parse(k); Value = v.AsFloat() } )
+        let tsFrame = Frame.ofRecords jsonArray |> Frame.indexRowsDate "Date" |> Frame.sortRowsByKey
+        tsFrame
+
+    let fullTsFrameFromAPI url = tsFrameFromAPI url (urlQueryDateRange (DateTime(1850,1,1)) DateTime.Now) 
+
+    // The final "join" function?
+    let combineMonthlySeries (ongoingSeries: TimeSeries) (historicSeries: TimeSeries) lastHistoricDate =     
+        let startDate = historicSeries |> Series.mapKeys (eoMonth) |> Series.firstKey
+        let maxDate =  ongoingSeries |> Series.mapKeys (eoMonth) |> Series.lastKey
+        let expectedMonthEnds = monthEndsBetween startDate maxDate
+        let eoMonthHistSeries = historicSeries |> Series.mapKeys (eoMonth) |> Series.filter (fun k v -> k <= lastHistoricDate ) |> Series.lookupAll expectedMonthEnds Lookup.Exact
+        let eoMonthOngoingSeries = ongoingSeries |> Series.mapKeys (eoMonth) |> Series.filter (fun k v -> k > lastHistoricDate ) |> Series.lookupAll expectedMonthEnds Lookup.Exact
+        let joinHistToOngoing = [ 
+            "Historic" => eoMonthHistSeries ;  
+            "Ongoing" => eoMonthOngoingSeries ] |> Frame.ofColumns
+        let fullReturns = joinHistToOngoing?Ongoing |> Series.fillMissingUsing (fun k -> joinHistToOngoing?Historic.Get(k))
+        fullReturns
+
+    // TS Integrity checks
+    let testTSGaps timeSeries (maxDays:TimeSpan) (minDays:TimeSpan) = 
+        let gaps = timeSeries |> Series.keys |> Seq.pairwise |> Seq.map (fun dates -> snd dates - fst dates )
+        let min = Seq.min gaps
+        let max = Seq.max gaps
+        let withinRange = min >= minDays && max <= maxDays
+        withinRange
+
+    let seriesIsValidMonthly (timeSeries: TimeSeries) = 
+        testTSGaps timeSeries (TimeSpan(31,0,0,0)) (TimeSpan(28,0,0,0))
 
     // Excess Returns
 
@@ -36,12 +108,15 @@ module RWTS =
 
     let logReturnOverMonths months (returns: TimeSeries) = 
         log(returns) - log(returns.Shift(months)) |> Series.dropMissing
-
+    
+    let logReturnMonthly (returns: TimeSeries) = logReturnOverMonths 1 returns
     let logReturnQuarterly (returns: TimeSeries) = logReturnOverMonths 3 returns
     let logReturnAnnual (returns: TimeSeries) = logReturnOverMonths 12 returns
 
     let contCompounded3MRates (rates: TimeSeries) = 
         0.25 * log(1.0 + rates.Shift(3))
+
+    let contCompoundeThreeMToOneMReturns (rates: TimeSeries) = log(1.0 + rates.Shift(1) / 1200.0) // For conversion of 3M rates for 1m vol calculations
 
     let excessReturn (returns: TimeSeries) (rates: TimeSeries) = 
         let initDate = returns.GetKeyAt(0)
