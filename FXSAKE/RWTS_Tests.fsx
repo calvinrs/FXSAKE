@@ -96,8 +96,8 @@ let fullDateRangeQuery  = urlQueryDateRange (DateTime(1850,1,1)) DateTime.Now
 
 let testRWTSSeries = tsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/RWTS/RW/NONE/NONE/EURSTOXX50/NONE""" fullDateRangeQuery
 
-let testFullRWTSSeries = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/RWTS/RW/NONE/NONE/E_NTH_M/NONE"""
-let testFullDDLSeries = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/DDL/NONE/NONE/NONE/AMSTERDAM_MIDKAP/NONE"""
+let testFullRWTSSeries = fullTimeSeriesFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/RWTS/RW/NONE/NONE/E_NTH_M/NONE"""
+let testFullDDLSeries = fullTimeSeriesFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/DDL/NONE/NONE/NONE/AMSTERDAM_MIDKAP/NONE"""
 
 // Is this the place to set dates to EOMonth?
 
@@ -105,17 +105,18 @@ let testFullDDLSeries = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeser
 // End date will be set manually - this is where we decide we want to switch over (take at EOmonth to ensure it includes the last value)
 let endDate = System.DateTime.Parse("2017-06-30") |> eoMonth
 
-let cleanedSeries = combineMonthlySeries testFullDDLSeries?Value testFullRWTSSeries?Value endDate
+let cleanedSeries = combineMonthlySeries testFullDDLSeries testFullRWTSSeries endDate
+
+
+
+// let's keep going - take in the 3M series too
+let testFullRWTS3MRates = fullTimeSeriesFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.SpotRate.3m/RWTS/RW/NONE/NTH/NONE/NONE"""
+let testFullDDL3MRatess = fullTimeSeriesFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.SpotRate.3m/DDL/NONE/NONE/EUR/NONE/NONE"""
+
+let cleaned3M = combineMonthlySeries testFullDDL3MRatess testFullRWTS3MRates endDate
 
 // Can we now do Timeseries functions on that data?
 let cleanLogAnnReturns = logReturnMonthly cleanedSeries
-
-// let's keep going - take in the 3M series too
-let testFullRWTS3MRates = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.SpotRate.3m/RWTS/RW/NONE/NTH/NONE/NONE"""
-let testFullDDL3MRatess = fullTsFrameFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.SpotRate.3m/DDL/NONE/NONE/EUR/NONE/NONE"""
-
-let cleaned3M = combineMonthlySeries testFullDDL3MRatess?Value testFullRWTS3MRates?Value endDate
-
 
 let threeMToOneMReturns = log(1.0 + cleaned3M.Shift(1) / 1200.0)
 

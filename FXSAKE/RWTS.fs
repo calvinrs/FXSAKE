@@ -78,6 +78,14 @@ module RWTS =
 
     let fullTsFrameFromAPI url = tsFrameFromAPI url (urlQueryDateRange (DateTime(1850,1,1)) DateTime.Now) 
 
+    // Makes mode sense for TimeSeries to be a Deedle "Series", no?
+    let timeSeriesFromAPI url query =  
+        let frame = tsFrameFromAPI url query
+        frame?Value
+
+    let fullTimeSeriesFromAPI url = timeSeriesFromAPI url (urlQueryDateRange (DateTime(1850,1,1)) DateTime.Now) 
+
+
     // The final "join" function?
     let combineMonthlySeries (ongoingSeries: TimeSeries) (historicSeries: TimeSeries) lastHistoricDate =     
         let startDate = historicSeries |> Series.mapKeys (eoMonth) |> Series.firstKey
