@@ -98,6 +98,13 @@ module RWTS =
             "Ongoing" => eoMonthOngoingSeries ] |> Frame.ofColumns
         let fullReturns = joinHistToOngoing?Ongoing |> Series.fillMissingUsing (fun k -> joinHistToOngoing?Historic.Get(k))
         fullReturns
+    
+    // Clean up the datetimes of a series so that they are end-of-month, and rejoin to the expected months in the series to ensure the data is complete on a monthly frequency
+    let eoMonthSeries series = 
+        let startDate = series |> Series.mapKeys (eoMonth) |> Series.firstKey
+        let endDate =  series |> Series.mapKeys (eoMonth) |> Series.lastKey
+        let expectedMonthEnds = monthEndsBetween startDate endDate
+        series |> Series.mapKeys (eoMonth) |> Series.lookupAll expectedMonthEnds Lookup.Exact
 
     // TS Integrity checks
     let testTSGaps timeSeries (maxDays:TimeSpan) (minDays:TimeSpan) = 

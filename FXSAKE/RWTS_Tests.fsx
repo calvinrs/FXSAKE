@@ -43,50 +43,7 @@ let testXSRetSeries = returnXSReturnSeries "E_CNY"
 
 open FxSake.RWTS
 
-
-let dateArray = [| DateTime(2014,12,31); DateTime(2015,12,31); DateTime(2016,12,31) |]
-let valArray = [| 100.0; 110.0; 120.0 |]
-
-timeSeriesFromArrays dateArray valArray
-
-
-let quarterlyTRI = logReturnQuarterly TRI
-let comp3MRates = contCompounded3MRates Rates3M
-
-dateLookupInTimeSeries quarterlyTRI (DateTime(2015,12,31))
-
-let xsReturns = excessReturn quarterlyTRI comp3MRates
-
-let quarterlyXSReturns = resampleMonthlySeries 4 xsReturns
-
-let settingLambda = 0.98
-let settingInitialVal = 0.031102706532478
-let seriesPeriod = 4
-
-let testSettings = {lambda = settingLambda; initValue = settingInitialVal}
-
-ewmaVariance testSettings quarterlyXSReturns
-
-ewmaVolatility testSettings seriesPeriod quarterlyXSReturns
-
-// Correlation Tests
-
-let calibrationDate = DateTime(2016, 12, 31)
-
-let seriesLH = returnXSReturnSeries "ASX_200_A_REIT"
-let seriesRH = returnXSReturnSeries "ASX_200_BANKS" 
-
-tenYearCorrelation calibrationDate (returnXSReturnSeries "ASX_200_A_REIT") (returnXSReturnSeries "ASX_200_BANKS" ) // = 0.6329625501
-// pair with a missing value 
-tenYearCorrelation calibrationDate (returnXSReturnSeries "EURSTOXX50") (returnXSReturnSeries "EUR_BankLoans" ) // = 0.5962678681
-
-// Unconditional correlation
-getUncCorrelFromPair 0.99 0.005625 0.5 (DateTime(2009, 12, 31)) (returnXSReturnSeries "E_AUD") (returnXSReturnSeries "E_HKD") //  = 0.53407839
-
-getUncCorrelFromPair 0.99 0.005625 0.5 (DateTime(2009, 12, 31)) (returnXSReturnSeries "E_HKD") (returnXSReturnSeries "E_AUD") //  = 0.53407839, still
-
-
-/// Unrelated to RWTS - try to get data from our model API
+// Unrelated to RWTS - try to get data from our model API
 
 //open FxSake.RWTS
 //open FSharp.Data
@@ -148,3 +105,87 @@ seriesIsValidMonthly cleanedSeries
 let returnsWithMissing = cleanedSeries |> Series.filter (fun k v -> k.Equals(eoMonth(endDate)) = false)
 
 seriesIsValidMonthly returnsWithMissing
+
+// Repeating the CSV data, this time replaced by data from the (historic) time series service
+
+let TRI' = fullTimeSeriesFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.Equity.TotalReturnIndex/RWTS/RW/NONE/NONE/E_CNY/NONE"""
+let Rates3M' = fullTimeSeriesFromAPI """http://lhr-wbsdiweb501/Api/timeseriespoints/Series.MarketData.SpotRate.3m/RWTS/RW/NONE/CNY/NONE/NONE"""
+
+
+
+
+// Let's compare the data from the 2 methods - clean up the Date keys by making everything end-of month)
+
+let joinTRICSVtoAPI = [ 
+        "CSV" => (TRI |> eoMonthSeries) ;  
+        "API" => (TRI' |> eoMonthSeries) ] |> Frame.ofColumns
+
+// Watch out for the difference in scale
+let join3MCSVtoAPI = [ 
+        "CSV" => (Rates3M |> eoMonthSeries) ;  
+        "API" => (Rates3M' |> eoMonthSeries |> Series.mapValues (fun v -> v / 100.0)) ] |> Frame.ofColumns
+
+
+
+let testXSRetSeries' = returnXSReturnSeries "E_CNY"
+
+// Test with CSV data
+
+
+let dateArray = [| DateTime(2014,12,31); DateTime(2015,12,31); DateTime(2016,12,31) |]
+let valArray = [| 100.0; 110.0; 120.0 |]
+
+timeSeriesFromArrays dateArray valArray
+
+
+let quarterlyTRI = logReturnQuarterly TRI
+let comp3MRates = contCompounded3MRates Rates3M
+
+dateLookupInTimeSeries quarterlyTRI (DateTime(2015,12,31))
+dateLookupInTimeSeries comp3MRates (DateTime(2015,12,31))
+
+// Once more, with API data
+let quarterlyTRI' = logReturnQuarterly TRI'
+let comp3MRates' =  Rates3M' |> eoMonthSeries |> Series.mapValues (fun v -> v / 100.0) |> contCompounded3MRates
+
+dateLookupInTimeSeries quarterlyTRI' (DateTime(2015,12,31))
+
+// Datetime lookup is a bit weird, if we want to find on a particular day, we need the time as well
+let dateLookupInTimeSeries' (timeSeries: TimeSeries) (date: DateTime) =  
+        let endOfDay = DateTime(date.Year,date.Month, date.Day, 23, 59, 59, 999)       
+        timeSeries.Get(endOfDay)
+
+dateLookupInTimeSeries' comp3MRates' (DateTime(2015,12,31))
+
+// Ecess returns
+
+let xsReturns = excessReturn quarterlyTRI comp3MRates
+
+let quarterlyXSReturns = resampleMonthlySeries 4 xsReturns
+
+let settingLambda = 0.98
+let settingInitialVal = 0.031102706532478
+let seriesPeriod = 4
+
+let testSettings = {lambda = settingLambda; initValue = settingInitialVal}
+
+ewmaVariance testSettings quarterlyXSReturns
+
+ewmaVolatility testSettings seriesPeriod quarterlyXSReturns
+
+// Correlation Tests
+
+let calibrationDate = DateTime(2016, 12, 31)
+
+let seriesLH = returnXSReturnSeries "ASX_200_A_REIT"
+let seriesRH = returnXSReturnSeries "ASX_200_BANKS" 
+
+tenYearCorrelation calibrationDate (returnXSReturnSeries "ASX_200_A_REIT") (returnXSReturnSeries "ASX_200_BANKS" ) // = 0.6329625501
+// pair with a missing value 
+tenYearCorrelation calibrationDate (returnXSReturnSeries "EURSTOXX50") (returnXSReturnSeries "EUR_BankLoans" ) // = 0.5962678681
+
+// Unconditional correlation
+getUncCorrelFromPair 0.99 0.005625 0.5 (DateTime(2009, 12, 31)) (returnXSReturnSeries "E_AUD") (returnXSReturnSeries "E_HKD") //  = 0.53407839
+
+getUncCorrelFromPair 0.99 0.005625 0.5 (DateTime(2009, 12, 31)) (returnXSReturnSeries "E_HKD") (returnXSReturnSeries "E_AUD") //  = 0.53407839, still
+
